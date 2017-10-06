@@ -22,6 +22,8 @@ namespace Diary.UWP
             this.InitializeComponent();
 
             LoadApplication(new Diary.App());
+
+            Diary.App.DatabaseFolder = FileHelper.GetLocalStoragePath();
         }
     }
 }
