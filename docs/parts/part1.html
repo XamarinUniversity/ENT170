@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+    <title>Store user data with Xamarin.Auth</title>
+    <link rel="stylesheet" type="text/css" href="./res/styles/normalize.css">
+    <link rel="stylesheet" type="text/css" href="./res/styles/prettify.css" />
+    <link rel="stylesheet" type="text/css" href="./res/styles/styles.css">
+</head>
+
+<body>
+    <!-- Use the same title as the StartHere -->
+    <header>Securing Local Data</header>
+
+    <section id="main">
+
+        <h1 id="page-title"></h1>
+
+        <h2>Duration</h2>
+        <p>20 minutes</p>
+
+        <h2>Goals</h2>
+
+        <p>
+            The primary goal of this lab is to securely store user-entered data locally. You will be working on a Diary application that supports multiple users and multiple diary entries per user. For added security, the app requires each user to create an account with a username and password. The app validates these credentials each time a user works with the app (the app's login screen is shown below). Most of the app has already been completed; your job will be to extend it to use <b>Xamarin.Auth</b> to save usernames and passwords.
+        </p>
+
+        <div class="hintblock">
+    	   <b>Note:</b> The technique we will use here is not an optimal strategy for working with passwords. We will be improving on our strategy in the next few exercises.
+        </div>
+
+           <div class="hintblock">
+    	   <b>Note:</b> To run the <b>iOS</b> project on either a device or simulator you will need to create a provisioning profile and update the bundle ID. There is a link in the StartHere that provides details on creating a free provisioning profile. 
+           The Android and UWP projects do not require any additional setup.
+        </div>
+
+
+        <img src="res/images/Ex1_complete.png" width="320" alt="" style='border:1px solid #c0c0c0'/>
+
+        <h2>Assets</h2>
+        <p>
+            The provided <strong>Exercise 1</strong> folder contains a folder named <b>Start</b> which you'll use to begin the exercise. There is also a folder named <strong>Completed</strong> with a solution you can use to check your work.
+        </p>
+
+        <h2>Challenge</h2>
+        <p>
+        	Below are the high-level steps needed to complete the exercise.
+        </p>
+        <p>
+            <ol>
+                <li>Open the Diary application in the <b>Exercise 1/Start</b> folder.</li>
+                <li>Add the <b>Xamarin.Auth</b> NuGet package to each project in the solution.</li>
+                <li>Add the <b>PCLCrypto</b> NuGet package to each project in the solution.</li>
+                <li>Complete the <code>GetAccountFromStore</code> method in <b>AccountManager.cs</b>; it should return an <code>Account</code> object based on the username.</li>
+                <li>In the <code>CreateAndSaveAccount</code> method, create a new <code>Account</code> for the <b>username</b>, store the password in the account <code>Properties</code>, and save the acccount in the <b>AccountStore</b>.</li>
+                <li>In the <code>LoginToAccount</code> method, try to load an <b>Account</b> based on the <b>username</b>, retrieve the password and compare it to the entered password.</li>
+            </ol>
+        </p>
+
+
+        <!-- Steps -->
+        <h1>Steps</h1>
+
+        <h2>Add Xamarin.Auth and PCLCrypto Packages</h2>
+        <ol>
+            <li>Open the Diary application in the <b>Exercise 1/Start</b> folder.
+            This is a Xamarin.Forms application with the common code stored in a PCL Project.</li>
+            <li>Add the <b>PCLCrypto</b> Nuget package to each project in the solution.</li>
+            <li>Add the <b>Xamarin.Auth</b> NuGet package to each project in the solution. Note: Xamarin.Auth now has a dependency on PCLCrypto and will automatrically install PCLCrypto if it isn't present.</li>
+            <li>You should now be able to build and run the application. It will display a login screen but will not yet function properly and allow you to authenticate with a set of user credentials.</li>
+            <li>The application consists of 3 screens:
+                <ul>
+                    <li><b>LoginPage:</b> Used to create new accounts and validate the username and password for existing users.</li>
+                    <li><b>DiaryEntriesPage:</b> Used to display and access saved diary entries for the current user.</li>
+                    <li><b>EditorPage:</b> Used to add and edit diary entries.</li>
+                </ul>
+            </li>
+        </ol>
+
+        <h2>Create Accounts and AccountStores</h2>
+        <ol>
+            <li>
+            	Open <b>AccountManager.cs</b> in the PCL and scroll to the top of the class. Notice we have several <code>const string</code> values.
+            	We'll use these as dictionary keys instead of using string literals.
+           	</li>
+
+            <li>
+            	Find the <code>GetAccountFromStore</code> method. This method loads an <code>Account</code> from an <code>AccountStore</code>. Currently, it is a stub implementation that only contains some basic null checks. It's your job to complete it.
+            </li>
+
+            <li>
+            	After the null checking, call the store's <code>FindAccountsForService</code> method and save the results to a local variable named <b>accounts</b>.
+            	Use the string constant <b>serviceID</b> as the service Id. This method will return all accounts saved with that service Id.
+            </li>
+
+            <li>
+            	We only want the account associated with our <b>username</b>. Iterate through each account in <b>accounts</b> and return the first result with a <b>Username</b> that matches our passed in <b>username</b>. You can use whatever approach you prefer - <code>foreach</code>, <code>for-</code>loop, or LINQ's <code>FirstOrDefault</code> extension method (shown in the code hint below). Return the located account, or <code>null</code> if no matching account could be found.
+            </li>
+        </ol>
+
+<p><a href="#" onclick="toggleCode(this,'GetAccountFromStore');return false;" class="uiitem">Show Code</a>
+<div id="GetAccountFromStore" style="display:none;">
+<pre class="prettyprint">
+Account GetAccountFromStore (AccountStore store, string username)
+{
+    if (store == null || username == null)
+        return null;
+
+    var accounts = store.FindAccountsForService (serviceID);
+    return accounts.FirstOrDefault(a => a.Username == username);
+}
+</pre></div>
+</p>
+
+        <h2>Create and Save new Accounts</h2>
+        <p>
+        	The login screen supports two operations: login to an existing account or create a new one. Here, we will implement the method to create new accounts. The user interface and button <code>Click</code>-handlers are already in place; your job is to implement the code to create and save new accounts.
+	    </p>
+        <ol>
+            <li>
+            	Open <b>AccountManager.cs</b> in the PCL and find the <code>CreateAndSaveAccount</code> method.
+            </li>
+
+            <li>
+            	Get a reference to the <code>AccountStore</code> instance using the <code>AccountStore.Create</code> method and save it to a local variable named <b>store</b>.
+            </li>
+
+            <li>
+            	Ensure the account doesn't already exist: try to load the <code>Account</code> for the passed username using the <code>GetAccountFromStore</code> method you implemented earlier, passing in the <b>store</b> and <b>username</b>. If the account exists return <code>false</code> (the UI code already handles notifying the user).
+    	    </li>
+
+    	    <li>
+    	    	Create a new <code>Account</code> passing <b>username</b> into the constructor.
+    	    </li>
+
+            <li>
+            	Add the <b>password</b> to the new account's <b>Properties</b> dictionary.
+	            We need to provide a key for the dictionary, rather than using a string literal, use the <b>pwKey</b> string constant defined on the class.
+	        </li>
+
+            <li>
+                Save <b>account</b> in the <b>store</b> using the <code>AccountStore</code>'s <code>Save</code> method. We need to provide a service ID, again this could be a string literal, 
+                but use the <b>serviceID</b> string constant.
+	        </li>
+
+	        <li>
+	        	Return <code>true</code> to indicate success.
+	        </li>
+
+            <li>
+                Run the Diary application and create a new account by entering a username and password into the initial page, and pressing the <b>Create New Account</b> button which is at the bottom of the page.
+            </li>
+        </ol>
+
+<p><a href="#" onclick="toggleCode(this,'CreateAndSaveAccount');return false;" class="uiitem">Show Code</a>
+<div id="CreateAndSaveAccount" style="display:none;">
+<pre class="prettyprint">
+public bool CreateAndSaveAccount (string username, string password)
+{
+    ... 
+    
+    AccountStore store = AccountStore.Create();
+    if (GetAccountFromStore(store, username) != null)
+        return false;
+
+    Account account = new Account(username);
+    account.Properties.Add(pwKey, password);
+    store.Save(account, serviceID);
+
+    return true;
+}
+</pre></div>
+</p>
+
+        <h2>Login to Existing Accounts</h2>
+        <p>
+        	Finally, we'll handle the flow where the user logs in to an existing account. As before, the UI and event handlers are already in place; your job is to finish a method to validate an existing account.
+        </p>
+
+        <ol>
+            <li>Open the <b>AccountManager.cs</b> source file in the PCL and find the <code>LoginToAccount</code> method.</li>
+            <li>Using the same approach you did earlier, create an <code>AccountStore</code> instance and try to load the <code>Account</code> for the passed username using the <code>GetAccountFromStore</code> method.</li>
+            <li>If the <code>Account</code> is <code>null</code> return <code>false</code>.</li>
+            <li>Get the password from the <code>Account</code>'s <b>Properties</b> dictionary using <b>pwKey</b> as the key.</li>
+            <li>Compare the retrieved password to the passed in <b>password</b> and return <code>true</code> if they match and <code>false</code> if they don't.</li>
+            <li>Run the application and try logging into the account you created previously.  Try logging in with the wrong password or with an account you know doesn't exist. Stop and start the application &dash; notice the login data persists.</b></li>
+        </ol>
+
+<div class="hintblock">
+    <b>Note:</b> If you want to remove saved account data you can reset your simulator or delete the application from the device and re-install it.
+</div>
+<p><a href="#" onclick="toggleCode(this,'LoginToAccount');return false;" class="uiitem">Show Code</a>
+<div id="LoginToAccount" style="display:none;">
+<pre class="prettyprint">
+public bool LoginToAccount (string username, string password)
+{
+    Account account = GetAccountFromStore(AccountStore.Create(), username);
+    return account != null &amp;&amp; account.Properties[pwKey] == password;
+}
+</pre></div>
+            </p>
+
+        <h1>Summary</h1>
+        <p>
+            In this exercise, you persisted user-entered data using the <code>AccountStore</code> and <code>Account</code> types available in Xamarin.Auth.
+        </p>
+        <div class="align-right">
+            <a href="../Start%20Here.html">Go Back</a>
+        </div>
+    </section>
+
+    <script src="./res/js/jquery.min.js"></script>
+    <script src="./res/js/prettify.js"></script>
+    <script src="./res/js/script.js"></script>
+
+    <footer>Copyright (C) 2018 Xamarin Inc., Microsoft.</footer>
+</body>
+</html>

@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+    <title>Encrypt and decrypt data</title>
+    <link rel="stylesheet" type="text/css" href="./res/styles/normalize.css">
+    <link rel="stylesheet" type="text/css" href="./res/styles/prettify.css" />
+    <link rel="stylesheet" type="text/css" href="./res/styles/styles.css">
+</head>
+
+<body>
+    <!-- Use the same title as the StartHere -->
+    <header>Securing Local Data</header>
+
+    <section id="main">
+
+        <h1 id="page-title"></h1>
+
+        <h2>Duration</h2>
+        <p>20 minutes</p>
+
+        <h2>Goals</h2>
+
+        <p>
+            The primary goal of this exercise is to use symmetric encryption to protect locally-stored user data.
+        </p>
+
+        <p>	
+            This exercise adds encryption to the Diary app. The core work of creating, saving, and loading diary entries in a SQLite database has already been completed. Your job is to encrypt the diary entries before they are stored, and decrypt them when they are retrieved. A screenshot of the diary editor page with a decrypted entry is shown below.
+        </p>
+
+        <img src="res/images/Ex2_complete.png" width="320" alt="" style='border:1px solid #c0c0c0'/>
+      
+        <p>
+            Note that the code in this part adds a new value to the stored user accounts which means
+            that existing accounts will no longer work correctly after these changes. Please reset
+            your emulator/simulator or use new accounts for testing.
+        </p>
+
+        <h2>Assets</h2>
+        <p>
+            This exercise is a continuation of the prior exercise. You may use your existing solution or open the <b>Completed</b> solution in the <b>Exercise 2</b> folder. The provided <strong>Exercise 3</strong> folder contains a subfolder named <strong>Completed</strong> with a solution you can use to check your work. 
+        </p>
+
+        <h2>Challenge</h2>
+        <p>
+            <ol>
+                <li>Generate and save symmetric key material in the <code>Properties</code> dictionary when creating a new <code>Account</code>.</li>
+                <li>Complete the <code>Encrypt</code> method in <b>Security/CryptoUtilities.cs</b> using 256bit <b>AesCbcPkcs7</b> and a random initialization vector.</li>
+                <li>Complete the <code>Decrypt</code> method in <b>Security/CryptoUtilities.cs</b>.</li>
+                <li>Update the <code>GetCipherText</code> method in <b>EditorPage.xaml.cs</b> to use the new <code>Encrypt</code> method.</li>
+                <li>Update the <code>GetDiaryText</code> method in <b>EditorPage.xaml.cs</b> to use the new <code>Decrypt</code> method.</li>
+                <li>Test your changes by running the application and creating a new diary entry, closing and re-opening the app to reload the entry you just created.</li>
+            </ol>
+        </p>
+
+      
+        <!-- Steps -->
+        <h1>Steps</h1>
+  
+        <h2>Examine the CryptoUtilities class</h2>
+        <p>
+        	In this first part, we will explore the provided implementation and point out a few places where you will be adding code.	
+        </p>
+        <ol>
+            <li>Open the <b>Security/CryptoUtilities.cs</b> file in the PCL project. This class will hold our encryption code.</li>
+            <li>Look at the <code>GetAES256KeyMaterial</code> method; this creates cryptographically random data that our app will use as key material for our symmetric keys.</li>
+            <li>Locate <code>ByteArrayToString</code> and <code>StringToByteArray</code>; these methods will convert existing strings to byte arrays and return the byte arrays to strings. We'll use these methods to convert user-entered strings to arrays and vice-versa. The user-entered data arrives as strings but the encrypt/decrypt operations work on byte arrays so we need to do this conversion.</li>
+        </ol>
+
+        <h2>Create and Save Key Material</h2>
+        <p>
+        	Each user will need a unique key to perform encryption (we do not want to share a single key across multiple users because one user could then decrypt another user's diary entries). You will generate the user's key when they first create their account and store it in their <b>Account</b> object.
+        </p>
+        <p>
+        	The Account's <code>Properties</code> dictionary is only able to store strings so we'll Base64 encode the key material before storing it. Recall from the prior exercise that <a href="https://en.wikipedia.org/wiki/Base64">Base-64 Encoding</a> is a common way to convert binary data into a string for transmission or storage.
+        </p>
+
+        <ol>
+            <li>
+            	Open <b>AccountManager.cs</b> in the PCL project and find the <code>CreateAndSaveAccount</code> method.
+            </li>
+
+            <li>
+            	Create key material using the <code>CryptoUtilities.GetAES256KeyMaterial</code> method.
+            </li>
+
+            <li>
+            	Base64 encode the key material using the static <code>Convert.ToBase64String</code> method.
+            </li>
+
+            <li>
+            	Save the key material in the account's <code>Properties</code> dictionary using <b>kmKey</b> as the key.
+			</li>
+        </ol>
+
+<p><a href="#" onclick="toggleCode(this,'CreateAndSaveAccount');return false;" class="uiitem">Show Code</a>
+<div id="CreateAndSaveAccount" style="display:none;">
+<pre class="prettyprint">
+public bool CreateAndSaveAccount (string username, string password)
+{
+    ...
+    Account account = new Account (username);
+    ...
+    <mark>account.Properties.Add(kmKey, Convert.ToBase64String(
+                CryptoUtilities.GetAES256KeyMaterial()));</mark>
+    ...
+}
+</pre></div>
+</p>
+
+        <h2>Implement the Encrypt method</h2>
+        <ol>
+            <li>
+            	Open <b>Security/CryptoUtilties.cs</b> in the PCL and find the <b>Encrypt</b> method. Notice the method takes two byte-array parameters and returns an encrypted byte array.
+	        </li>
+
+            <li>
+            	The first step is to create a provider for the correct algorithm from PCLCrypto. We'll be using <b>AesCbcPkcs7</b>. Use the static <code>WinRTCrypto.SymmetricKeyAlgorithmProvider.OpenAlgorithm</code> method passing in <code>SymmetricAlogrithm.AesCbcPkcs7</code>.
+            </li>
+
+            <li>
+            	Once the provider is created, we can call its <b>CreateSymmetricKey</b> method, passing in the <b>keyMaterial</b>. This will return an <code>ICryptographicKey</code> object representing our key. Save it to a local variable named <b>key</b>.
+            </li>
+
+            <li>
+            	Next we'll generate a 16-byte random initialization vector using the static <code>WinRTCrypto.CryptographicBuffer.GenerateRandom</code> method and save it to local variable named <b>IV</b>. Use the provided <code>const</code> <code>int</code> <b>IVSize</b> instead of hardcoding the 16-byte length.
+            </li>
+
+            <li>
+            	Now we can encrypt our <b>plainText</b> value. Call <code>WinRTCrypto.CryptographicEngine.Encrypt</code> passing in <b>key</b>, <b>plainText</b>, and <b>IV</b> and save the encrypted result to a local variable named <b>cipher</b>.
+            </li>
+
+            <li>
+            	We're almost done, but we need to include the initialization vector with the cipher so it is available during decryption. Notice how we use a unique IV for each encryption operation; therefore, we need that same IV available for each decryption. We will store the IV by prepending it to the cipher text. Create a new byte array named <b>cipherText</b> that is long enough to store both <b>IV</b> and the <b>cipher</b> value.
+            </li>
+
+            <li>
+            	Use the <code>byte[] CopyTo</code> method to copy the two individual arrays into the <b>cipherText</b> array: <b>IV</b> first since it's a fixed-length and <b>cipher</b> second.
+            </li>
+
+            <li>
+            	Return the <b>cipherText</b> value which includes the IV and encrypted text.
+            </li>
+        </ol>
+
+<p><a href="#" onclick="toggleCode(this,'Encrypt');return false;" class="uiitem">Show Code</a>
+<div id="Encrypt" style="display:none;">
+<pre class="prettyprint">
+public static byte[] Encrypt (byte[] plainText, byte[] keyMaterial)
+{
+    var provider = WinRTCrypto.SymmetricKeyAlgorithmProvider
+        .OpenAlgorithm(SymmetricAlgorithm.AesCbcPkcs7);
+
+    var key = provider.CreateSymmetricKey(keyMaterial);
+    var IV = WinRTCrypto.CryptographicBuffer.GenerateRandom(IVSize);
+    var cipher = WinRTCrypto.CryptographicEngine.Encrypt(key, plainText, IV);
+        
+    var cipherText = new byte[IV.Length + cipher.Length];
+
+    IV.CopyTo(cipherText, 0);
+    cipher.CopyTo(cipherText, IV.Length);
+
+    return cipherText;
+}
+</pre></div>
+</p>
+
+        <h2>Implement the Decrypt method</h2>
+        <ol>
+            <li>
+            	Locate the <code>Decrypt</code> method in the <b>Security/CryptoUtilties.cs</b> file. Notice the method takes two byte-array parameters and returns an unencrypted byte array.
+	        </li>
+
+            <li>
+            	Just like we did for the <code>Encrypt</code> method; create a key for the symmetric AesCbcPkcs7 algorithm.	See the encryption steps above for details. The code that calls this method will ensure that the same key material is passed to you so you will use the same key for decryption that you used for
+            	encryption.
+            </li>
+
+            <li>
+            	Next, extract the initialization vector from the cipher text. Create a new byte array named <b>IV</b> with a size of <b>IVSize</b> and use the static <code>Array.Copy</code> method to copy the initialization vector from <b>cipher</b> to <b>IV</b>. Remember, we stored it in the first <b>IVSize</b> (16) bytes.
+            </li>
+
+            <li>
+            	Create another byte array named <b>cipher</b> with a length that is <b>IVSize</b> (16) less than the length of <b>cipherText</b>.
+            </li>
+
+            <li>
+            	Use the <code>Array.Copy</code> method to copy the rest of the data from <b>cipherText</b> to <b>cipher</b>.
+            </li>
+
+            <li>
+            	We have everything we need to decrypt; use the <code>WinRTCrypto.CryptographicEngine.Decrypt</code> method to decrypt <b>cipher</b> using <b>key</b> and <b>IV</b>.
+            </li>
+
+            <li>
+            	Return the decrypted byte array.
+            </li>
+        </ol>
+
+<p><a href="#" onclick="toggleCode(this,'Decrypt');return false;" class="uiitem">Show Code</a>
+<div id="Decrypt" style="display:none;">
+<pre class="prettyprint">
+public static byte[] Decrypt (byte[] cipherText, byte[] keyMaterial)
+{
+    var provider = WinRTCrypto.SymmetricKeyAlgorithmProvider
+        .OpenAlgorithm(SymmetricAlgorithm.AesCbcPkcs7);
+
+    var key = provider.CreateSymmetricKey(keyMaterial);
+
+    byte[] IV = new byte[IVSize];
+    Array.Copy(cipherText, IV, IV.Length);
+
+    byte[] cipher = new byte[cipherText.Length - IVSize];
+    Array.Copy(cipherText, IVSize, cipher, 0, cipher.Length);
+
+    return WinRTCrypto.CryptographicEngine.Decrypt(key, cipher, IV);
+}
+</pre></div>
+</p>
+
+        <h2>Encrypt Diary Entries</h2>
+        <p>
+        	Next, you will add code to encrypt diary entries before they are stored.
+        	The user interface and the button click-handlers have already been implemented for you. The first few steps walk you through the existing code. The remaining steps guide you through your task.
+        </p>
+
+        <ol>
+	        <li>
+	        	Open <b>Pages/EditorPage.xaml.cs</b> in the PCL. All your work for this part will be done in this file.
+			</li>
+
+			<li>
+				Locate the constructor. Notice we're passing in the <code>Account</code> object and saving it locally in <b>account</b>. This means the user's encryption key is available to you since it is stored in their Account. 
+	        </li>
+
+            <li>
+            	Locate the <code>BtnSaveClicked</code> event handler. This method uses the <code>GetCipherText</code> method to encrypt the user's diary entry.
+            </li>
+
+            <li>
+            	Locate the stub implementation of the <code>GetCipherText</code> method at the bottom of the source file. Your job is to complete the implementation of this method.
+           	</li>
+
+            <li>
+            	Retrieve the key material from <b>account</b>'s <b>Properties</b> dictionary using <b>kmKey</b> as the key and save it to a local string variable named <b>keyString</b>. If the retrieval fails, return <code>null</code> from <b>GetCipherText</b>.
+	        </li>
+
+            <li>
+            	The key material is Base64 encoded. Use <code>Convert.FromBase64String</code> to decode it to a byte array.
+           	</li>
+
+            <li>
+            	Use the static <code>CryptoUtilties.StringToByteArray</code> method to convert the passed in <b>diaryText</b> to a byte array.
+            </li>
+
+            <li>
+            	Encrypt using the static <code>CryptoUtilities.Encrypt</code> method.
+           	</li>
+
+            <li>
+            	Return the encrypted result.
+            </li>
+        </ol>
+
+<p><a href="#" onclick="toggleCode(this,'GetCipherText');return false;" class="uiitem">Show Code</a>
+<div id="GetCipherText" style="display:none;">
+<pre class="prettyprint">
+byte[] GetCipherText (string diaryText)
+{
+    string keyString;
+    if (!account.Properties.TryGetValue(kmKey, out keyString))
+        return null;
+
+    byte[] keyMaterial = Convert.FromBase64String(keyString);
+
+    return CryptoUtilities.Encrypt(
+        CryptoUtilities.StringToByteArray(diaryText), 
+        keyMaterial);
+}
+</pre></div>
+</p>
+        
+        <h2>Decrypt the Diary Entries</h2>
+        <p>
+        	As a last step, you will add code to decrypt an existing diary entry when the user loads it for editing. The first few steps below walk you through the supplied starter code. The remaining steps guide you through your task.
+        </p>
+
+        <ol>
+            <li>
+	        	Continue working in <b>EditorPage.xaml.cs</b> file.
+	        </li>
+
+            <li>
+    	        Locate the page's constructor. Note how it uses the <b>GetDiaryText</b> method to decrypt the diary entry stored in the <code>DiaryEntry</code> model object.
+	        </li>
+
+            <li>
+            	Locate the stub for the <b>GetDiaryText</b> method. Your job is to complete the implementation of this method. The following steps will guide you.
+	        </li>
+
+            <li>
+            	Retrieve the key material from <b>account</b>'s <b>Properties</b> dictionary using <b>kmKey</b> as the key and save it to a local variable named <b>keyString</b>. If it fails return <code>String.Empty</code>.
+	        </li>
+
+            <li>
+            	The key material is a Base64-encoded string. Use <code>Convert.FromBase64String</code> to decode it to a byte array.
+           	</li>
+
+            <li>
+            	Decrypt the passed in <b>cipherText</b> using the static <code>CryptoUtilities.Decrypt</code> method with the key material.
+            </li>
+
+            <li>
+            	<b>CryptoUtilities.Decrypt</b> returns a <code>byte[]</code>. Use <code>CryptoUtilities.ByteArrayToString</code> to convert the decrypted byte array to a <code>string</code> and return the decrypted string.
+            </li>
+
+            <li>
+                As before, we've added new information into our account which isn't present for existing accounts. Either create a new account to work with, or delete and re-install the application which will delete all your existing accounts.
+            </li>
+
+            <li>
+            	Run the application, create a new account (so you have the IV), create a diary entry, and save it. Edit the entry you just created and verify the text was decrypted correctly.
+            </li>
+        </ol>
+
+<p><a href="#" onclick="toggleCode(this,'GetDiaryText');return false;" class="uiitem">Show Code</a>
+<div id="GetDiaryText" style="display:none;">
+<pre class="prettyprint">
+string GetDiaryText (byte[] cipherText)
+{
+    string keyString;
+    if (!account.Properties.TryGetValue(kmKey, out keyString))
+        return string.Empty;
+
+    byte[] keyMaterial = Convert.FromBase64String(keyString);
+
+    return CryptoUtilities.ByteArrayToString(
+        CryptoUtilities.Decrypt(cipherText, keyMaterial));}
+</pre></div></p>
+            
+        <h1>Summary</h1>
+        <p>
+            In this exercise, we generated key material to be used with AES 256 encryption and stored the key material using <b>Xamarin.Auth</b>. We used the key material to encrypt and decrypt user-entered diary entries.
+        </p>
+        <div class="align-right">
+            <a href="../Start%20Here.html">Go Back</a>
+        </div>
+    </section>
+
+    <script src="./res/js/jquery.min.js"></script>
+    <script src="./res/js/prettify.js"></script>
+    <script src="./res/js/script.js"></script>
+
+    <footer>Copyright (C) 2018 Xamarin Inc., Microsoft.</footer>
+</body>
+</html>
