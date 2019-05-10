@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+    <title>Securing Local Data</title>
+    <link rel="stylesheet" type="text/css" href="./parts/res/styles/normalize.css">
+    <link rel="stylesheet" type="text/css" href="./parts/res/styles/prettify.css">
+    <link rel="stylesheet" type="text/css" href="./parts/res/styles/styles.css">
+</head>
+
+<body>
+    <!-- This will be filled in at runtime -->
+    <header role="course-title"></header>
+
+    <section id="main">
+
+        <h2>Before you begin</h2>
+        <p>
+        	This is a Xamarin.Forms class. To complete the coding exercises, you will need a Xamarin.Forms development environment and a simulator,
+        	emulator, or a device on which to run the exercises. Please see the <a href="https://university.xamarin.com/resources/setup-and-troubleshooting">setup page</a>
+        	if you need help installing the Xamarin development environment.
+        </p>
+
+        <h2>Overview</h2>
+        <p>
+            In this class you will see how to store data locally in your mobile applications.
+            You will encrypt the data before storing it and decrypt it after retrieval.
+            All the key operations will be done in a cross-platform way so you can share
+            the code across all the platforms you target.
+        </p>
+
+        <h2>Objectives</h2>
+        <ol>
+            <li>Store secrets with Xamarin.Auth</li>
+            <li>Introduce PCLCrypto</li>
+            <li>Hash passwords with PCLCrypto</li>
+            <li>Encrypt/decrypt data with PCLCrypto</li>
+        </ol>
+
+        <h2>Lecture</h2>
+        <p><a href="./parts/slides.pdf">ENT170 - Securing Local Data</a>.</p>
+
+        <h2>Exercises</h2>
+        <p>
+            Exercise materials are available from <a href="https://github.com/XamarinUniversity/ENT170/">GitHub</a>. The code can be cloned through a desktop Git client or <a href="https://github.com/XamarinUniversity/ENT170/archive/master.zip">downloaded directly</a> as a ZIP file.
+        </p>
+        <ol>
+            <li><div class="objective">Store user data with Xamarin.Auth</div>
+            <a href="./parts/part1.html">Exercise</a>
+            <br />
+            In this exercise, we will securely store user-entered data.
+            </li>
+            
+            <li><div class="objective">Hash and validate a password</div>
+            <a href="./parts/part2.html">Exercise</a>
+            <br />
+            In this exercise, we will use hashing to increase security when we store and validate a user's password.
+            </li>
+
+            <li><div class="objective">Encrypt and decrypt data</div>
+            <a href="./parts/part3.html">Exercise</a>
+            <br />
+            In this exercise, we will encrypt personal data being stored locally.
+            </li>
+        </ol>
+
+        <h2>Additional resources</h2>
+
+        <div class="wslist">
+            <a target="_blank" href="https://components.xamarin.com/gettingstarted/xamarin.auth">Getting Started with Xamarin.Auth</a>
+            <a target="_blank" href="https://github.com/aarnott/pclcrypto">PCLCrypto</a>        
+            <a target="_blank" href="https://support.microsoft.com/en-us/kb/246071">Description of Symmetric and Asymmetric Encryption</a>        
+            <a target="_blank" href="https://en.wikipedia.org/wiki/Cryptographic_hash_function">Cryptographic hash function</a>
+            <a target="_blank" href="https://developer.xamarin.com/guides/ios/getting_started/installation/device_provisioning/free-provisioning/">Free Provisioning (iOS)</a>
+        </div>
+
+    </section>
+
+    <script src="./parts/res/js/jquery.min.js"></script>
+    <script src="./parts/res/js/prettify.js"></script>
+    <script src="./parts/res/js/script.js"></script>
+
+    <footer>Copyright (C) 2018 Xamarin Inc., Microsoft.<br><a target="_blank" href="http://university.xamarin.com">Visit Xamarin University for more classes and content</a></footer>
+</body>
+</html>

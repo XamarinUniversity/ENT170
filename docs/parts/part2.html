@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+    <title>Hash and validate a password</title>
+    <link rel="stylesheet" type="text/css" href="./res/styles/normalize.css">
+    <link rel="stylesheet" type="text/css" href="./res/styles/prettify.css" />
+    <link rel="stylesheet" type="text/css" href="./res/styles/styles.css">
+</head>
+
+<body>
+    <!-- Use the same title as the StartHere -->
+    <header>Securing Local Data</header>
+
+    <section id="main">
+
+        <h1 id="page-title"></h1>
+
+        <h2>Duration</h2>
+        <p>15 minutes</p>
+
+        <h2>Goals</h2>
+
+        <p>
+            The primary goal of this lab is to use hashing to improve the security when storing passwords locally.
+        </p>
+
+        <p>
+        	The Diary application currently stores the user's password using the <b>Xamarin.Auth</b> <code>Account</code> class. This implementation is secure since the component encrypts the password when it stores it in the local file system. However, if the encryption were ever compromised, the attacker could recover the user's actual password. In this exercise, you will modify the app so it stores a salted and hashed version of the user's password instead of the actual password. This still lets you validate the user's password when they login, but adds an extra layer of security in case the encryption
+        	layer is ever cracked. Note that you will need to store the salt with the user's Account data so you can use it during password validation when an existing user logs in to their account.
+        </p>
+
+        <h2>Assets</h2>
+        <p>
+            This exercise is a continuation of the previous exercise. You may use your existing code or open the <b>Completed</b> solution in the <b>Exercise 1</b> folder. The provided <strong>Exercise 2</strong> folder contains a folder named <strong>Completed</strong> with a solution you can use to check your work.
+        </p>
+
+        <h2>Challenge</h2>
+        <p>
+            <ol>
+                <li>Complete the <code>GetHash</code> method in <b>Security/CryptoUtilities.cs</b>.</li>
+                <li>Create and save a new <b>Salt</b> when creating a new <code>Account</code> in <b>AccountManager.cs</b>.</li>
+                <li>Generate a hash of the user-entered password using the salt and save it in the <code>Account</code>.</li>
+                <li>When a user logs in, hash the entered password using the saved salt, and compare to the saved hash.</li>
+            </ol>
+        </p>
+
+        <!-- Steps -->
+        <h1>Steps</h1>
+
+        <h2>Hash a byte array</h2>
+        <p>
+        	We'll start by coding a method to compute a salted and hashed password. We will use this method later to compute the hash of the user's password both when they create their account and when they return to the application and need to login.
+        </p>
+
+        <ol>
+            <li>
+            	Open <b>Security/CryptoUtilities.cs</b> and find the <code>GetHash</code> method.
+            </li>
+
+            <li>
+            	Create a new byte array named <b>saltedData</b> that is large enough to store both the passed in <b>data</b> and the <b>salt</b> (e.g. use the <code>Length</code> property on both input arrays to determine their size).
+            </li>
+
+            <li>
+            	Use <code>Array.Copy</code> to copy <b>salt</b> to the start of <b>saltedData</b>. Call it again to	append the <b>data</b> array to the <b>saltedData</b> array by specifying a starting index for the copy.
+            </li>
+
+            <li>
+            	Get a reference to the <b>Sha256</b> hash algorithm provider using the <code>WinRTCrypto.HashAlgorithmProvider.OpenAlgorithm</code> method. Pass in <code>HashAlgorithm.Sha256</code>. Save the returned provider to a local variable named <b>sha</b>.
+            </li>
+
+            <li>
+            	Call <b>sha</b>'s <code>HashData</code> method passing in <b>saltedData</b> and return the result.
+            </li>
+        </ol>
+
+
+<p><a href="#" onclick="toggleCode(this,'GetHash');return false;" class="uiitem">Show Code</a>
+<div id="GetHash" style="display:none;">
+<pre class="prettyprint">
+public static byte[] GetHash (byte[] data, byte[] salt)
+{
+    byte[] saltedData = new byte[data.Length + salt.Length];
+    Array.Copy(salt, saltedData, salt.Length);
+    Array.Copy(data, 0, saltedData, salt.Length, data.Length);
+
+    var sha = WinRTCrypto.HashAlgorithmProvider.OpenAlgorithm(HashAlgorithm.Sha256);
+    return sha.HashData(saltedData);
+}
+</pre></div>
+</p>
+
+        <h2>Create and save the Salt</h2>
+        <p>
+        	Each user will need a unique salt to use when hashing their password. You will generate the user's salt when they first create their account and store it in their <b>Account</b> object. The Account's <code>Properties</code> dictionary is only able to store strings so we'll <em>base64</em> encode the salt
+        	before storing it. <a href="https://en.wikipedia.org/wiki/Base64">Base-64 Encoding</a> is a common way to convert binary data into a string for transmission or storage, it's a good choice here since the byte array does not represent string data that was previously encoded as binary; it is truly random.
+        </p>
+
+        <ol>
+            <li>
+            	Open <b>AccountManager.cs</b> in the PCL project and find the <code>CreateAndSaveAccount</code> method you worked on earlier. You will be adding code to this method.
+            </li>
+
+            <li>
+            	After the initial parameter check, generate a salt using the static <code>CryptoUtilities.Get256BitSalt</code>.	Save the salt to variable named <b>salt</b>.
+            </li>
+
+            <li>
+            	Base64 encode the salt using the static <code>Convert.ToBase64String</code> method.
+            </li>
+
+            <li>
+            	Save the salt to the <code>Account</code>'s <b>Properties</b> dictionary using <b>saltKey</b> as the key.
+			</li>
+        </ol>
+
+<p><a href="#" onclick="toggleCode(this,'CreateAndSaveAccount');return false;" class="uiitem">Show Code</a>
+<div id="CreateAndSaveAccount" style="display:none;">
+<pre class="prettyprint">
+public bool CreateAndSaveAccount (string username, string password)
+{
+    if (string.IsNullOrEmpty(username) || string.IsNullOrEmpty(password))
+        return false;
+
+    <mark>byte[] salt = CryptoUtilities.Get256BitSalt();</mark>
+
+    AccountStore store = AccountStore.Create();
+    if (GetAccountFromStore(store, username) != null)
+        return false;
+
+    Account account = new Account(username);
+    account.Properties.Add(pwKey, password);
+    <mark>account.Properties.Add(saltKey, Convert.ToBase64String(salt));</mark>
+
+    store.Save(account, serviceID);
+
+    return true;
+}
+</pre></div>
+</p>
+
+        <h2>Hash the password</h2>
+        <p>
+        	Next, you will compute the salted and hashed password when the user first creates their account. You will store the salted and hashed version of their password in their Account object instead	of the text password.
+        </p>
+
+        <ol>
+            <li>
+            	Continue working in the <code>CreateAndSaveAccount</code> method.
+           	</li>
+
+            <li>
+            	After the salt is created, use it to hash the user's password by using the <code>CryptoUtilities.GetHash</code> method. Pass in the <b>password</b> and <b>salt</b>. Save the results in a variable named <b>hash</b>. Remember, you'll need to convert <b>password</b> to a byte array using <code>CryptoUtilities.StringToByteArray</code>.
+	        </li>
+
+	        <li>
+	        	Base64 encode the salted and hashed password.
+	        </li>
+
+            <li>
+            	Save the salted+hashed Base64-encoded password in <b>account</b> instead of the text password.
+            </li>
+        </ol>
+
+<p><a href="#" onclick="toggleCode(this,'CreateAndSaveAccount2');return false;" class="uiitem">Show Code</a>
+<div id="CreateAndSaveAccount2" style="display:none;">
+<pre class="prettyprint">
+public bool CreateAndSaveAccount (string username, string password)
+{
+    if (string.IsNullOrEmpty(username) || string.IsNullOrEmpty(password))
+        return false;
+
+    byte[] salt = CryptoUtilities.Get256BitSalt();
+    <mark>byte[] hashedPassword = CryptoUtilities.GetHash(
+        CryptoUtilities.StringToByteArray(password), salt);</mark>
+
+    AccountStore store = AccountStore.Create();
+    if (GetAccountFromStore(store, username) != null)
+        return false;
+
+    Account account = new Account(username);
+    account.Properties.Add(pwKey, <mark>Convert.ToBase64String(hashedPassword)</mark>);
+    account.Properties.Add(saltKey, Convert.ToBase64String(salt));
+
+    store.Save(account, serviceID);
+
+    return true;
+}
+</pre></div>
+            </p>
+        </ol>
+
+        <h2>Hash and compare</h2>
+        <p>
+        	The final step is to add hashing to the code that validates the user's password when they log in to an existing account.
+        </p>
+        <ol>
+        	<li>
+        		Locate the <code>LoginToAccount</code> method in the <b>AccountManager.cs</b> source file. You will be modifying this method in the section that comes after the code that verifies the <code>Account</code> exists.
+            </li>
+
+            <li>
+                There are two ways to approach this, you can implement the code using either strategy.
+                <ul class="indent-none">
+                    <li>First, you can take the <b>password</b> parameter, retrieve the <b>salt</b> from the account <code>Properties</code> collection, hash the password with the salt, convert it to a string and compare the resulting data to the saved hashed-password which is stored as a string. This will be more efficient given that our hashed password is stored as a string already.</li>
+                    <li>Or, you can take the <b>password</b> parameter, retrieve the <b>salt</b> from the account <code>Properties</code> collection, hash the password with the salt and then convert the saved password <em>back</em> into a <code>byte[]</code> and use LINQ's <code>SequenceEquals</code> method to compare the two arrays. This approach would be preferred if we were storing the hashed password as a <code>byte[]</code>.</li>
+                </ul>
+            </li>
+
+            <li>
+            	Where we currently check the password, rewrite this code to compare the stored password hash with a calculated hash from the inbound password using either approach outlined above.
+            </li>
+
+            <li>
+                Based on the comparison, return <b>true</b> or <b>false</b>.
+            </li>
+
+            <li>
+                Accounts created in the earlier exercise will no longer work since the password hash isn't present in the account - in fact, depending on how you coded your method (expecting a salt), it might even crash now. You have three options to fix this:
+                <ul class="indent-none">
+                  <li>If you're working on an emulator/simulator, you can reset the device which will remove the account store.</ll>
+                    <li>Add additional code/UI to delete existing saved account objects using the AccountStore's <code>Delete</code> method.</li>
+                    <li>Modify your <code>LoginToAccount</code> method to properly handle old-style passwords. You can detect this case by checking the <code>Properties</code> collection for the presence of the <b>saltKey</b> value. If it's not present, then the password is stored directly. In this case, your code should <em>upgrade</em> the password storage to the new approach. If you choose this approach, make sure to call <code>AccountStore.Save</code> to persist your changes.
+                    </li>
+                </ul>
+                It doesn't matter which approach you take, however the 3rd approach would be more friendly to our users. There's an example of this approach in the completed solution.
+            </li>
+
+            <li>
+            	Run the application. It should behave exactly as it did previously, only we're no longer storing the raw passwords on the device.
+            </li>
+        </ol>
+
+<p><a href="#" onclick="toggleCode(this,'LoginToAccount');return false;" class="uiitem">Show Code</a>
+<div id="LoginToAccount" style="display:none;">
+<pre class="prettyprint">
+public bool LoginToAccount (string username, string password)
+{
+    if (string.IsNullOrEmpty(username) || string.IsNullOrEmpty(password))
+        return false;
+
+    AccountStore store = AccountStore.Create();
+    Account account = GetAccountFromStore(store, username);
+
+    <mark>if (account == null)
+        return false;
+
+    byte[] salt, hashedPassword;
+
+    // Upgrade existing passwords to our new format.
+    if (!account.Properties.ContainsKey(saltKey))
+    {
+        salt = CryptoUtilities.Get256BitSalt();
+        hashedPassword = CryptoUtilities.GetHash(
+            CryptoUtilities.StringToByteArray(account.Properties[pwKey]), salt);
+        account.Properties[pwKey] = Convert.ToBase64String(hashedPassword);
+        account.Properties.Add(saltKey, Convert.ToBase64String(salt));
+        store.Save(account, serviceID);
+    }
+
+    salt = Convert.FromBase64String(account.Properties[saltKey]);
+    hashedPassword = CryptoUtilities.GetHash(
+        CryptoUtilities.StringToByteArray(password), salt);</mark>
+
+    return account.Properties[pwKey] == <mark>Convert.ToBase64String(hashedPassword)</mark>;
+}
+</pre></div>
+</p>
+    <h2>Bonus Exercise - Use a Key Derivation Function</h2>
+    <p>
+        Instead of using simple hashing, you can use a more compuationally expensive <b>key derivation function</b>. PCLCrypto provides a .NET style method NetFxCrypto.DeriveBytes.GetBytes that can be used.<br>
+        Try replacing the code in the <code>GetHash</code> method to use <code>NetFxCrypto.DeriveBytes.GetBytes</code>. A completed solution is provided in the <b>Bonus</b> folder.
+    </p>
+
+
+
+        <h1>Summary</h1>
+        <p>
+            In this exercise, you salted and hashed the user's password both during account creation and account log in. This let you avoid saving the raw user credentials on the device.
+        </p>
+        <div class="align-right">
+            <a href="../Start%20Here.html">Go Back</a>
+        </div>
+    </section>
+
+    <script src="./res/js/jquery.min.js"></script>
+    <script src="./res/js/prettify.js"></script>
+    <script src="./res/js/script.js"></script>
+
+    <footer>Copyright (C) 2018 Xamarin Inc., Microsoft.</footer>
+</body>
+</html>
